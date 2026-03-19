@@ -32,10 +32,10 @@ local Window = Rayfield:CreateWindow({
 })
 
 local Tab = {
-    Main    = Window:CreateTab("Main",    "home"),
-    ESP     = Window:CreateTab("ESP",     "eye"),
-    Combat  = Window:CreateTab("Combat",  "sword"),
-    Support = Window:CreateTab("Support", "heart"),
+    Main    = Window:CreateTab("Main"),
+    ESP     = Window:CreateTab("ESP"),
+    Combat  = Window:CreateTab("Combat"),
+    Support = Window:CreateTab("Support"),
 }
 
 -- ============================================================
@@ -79,7 +79,8 @@ end
 local _survivorsFolder
 local function getSurvivorsFolder()
     if not _survivorsFolder or not _survivorsFolder.Parent then
-        _survivorsFolder = Workspace:WaitForChild("Players"):WaitForChild("Survivors")
+        local playersFolder = Workspace:FindFirstChild("Players")
+        _survivorsFolder = playersFolder and playersFolder:FindFirstChild("Survivors")
     end
     return _survivorsFolder
 end
@@ -313,9 +314,17 @@ do
     Tab.ESP:CreateToggle({ Name = "Generators ESP", Flag = "ESP_Generators", CurrentValue = false, Callback = function(v) ESPState.Generators = v end })
     Tab.ESP:CreateToggle({ Name = "Items ESP",      Flag = "ESP_Items",      CurrentValue = false, Callback = function(v) ESPState.Items      = v end })
 
-    local killersFolder   = Workspace:WaitForChild("Players"):WaitForChild("Killers")
-    local survivorsFolder = Workspace:WaitForChild("Players"):WaitForChild("Survivors")
-    local itemsFolder     = Workspace:FindFirstChild("Items")
+    local function getKillersFolder()
+        local p = Workspace:FindFirstChild("Players")
+        return p and p:FindFirstChild("Killers")
+    end
+    local function getESPSurvivorsFolder()
+        local p = Workspace:FindFirstChild("Players")
+        return p and p:FindFirstChild("Survivors")
+    end
+    local function getItemsFolder()
+        return Workspace:FindFirstChild("Items")
+    end
 
     -- Create a BillboardGui tag on an object if not already present
     local function createESPTag(obj, color)
@@ -350,17 +359,21 @@ do
     task.spawn(function()
         while task.wait(1.5) do
             if ESPState.Killers then
-                for _, k in ipairs(killersFolder:GetChildren()) do
-                    if k:IsA("Model") then createESPTag(k, Color3.fromRGB(255, 60, 60)) end
+                local kf = getKillersFolder()
+                if kf then
+                    for _, k in ipairs(kf:GetChildren()) do
+                        if k:IsA("Model") then createESPTag(k, Color3.fromRGB(255, 60, 60)) end
+                    end
                 end
             end
-
             if ESPState.Survivors then
-                for _, s in ipairs(survivorsFolder:GetChildren()) do
-                    if s:IsA("Model") then createESPTag(s, Color3.fromRGB(0, 180, 255)) end
+                local sf = getESPSurvivorsFolder()
+                if sf then
+                    for _, s in ipairs(sf:GetChildren()) do
+                        if s:IsA("Model") then createESPTag(s, Color3.fromRGB(0, 180, 255)) end
+                    end
                 end
             end
-
             if ESPState.Generators then
                 local mapFolder = Util.GetMapFolder()
                 if mapFolder then
@@ -369,10 +382,12 @@ do
                     end
                 end
             end
-
-            if ESPState.Items and itemsFolder then
-                for _, item in ipairs(itemsFolder:GetChildren()) do
-                    createESPTag(item, Color3.fromRGB(255, 200, 0))
+            if ESPState.Items then
+                local itf = getItemsFolder()
+                if itf then
+                    for _, item in ipairs(itf:GetChildren()) do
+                        createESPTag(item, Color3.fromRGB(255, 200, 0))
+                    end
                 end
             end
         end
@@ -380,16 +395,20 @@ do
 
     -- Every frame, toggle tag visibility based on current ESP state
     RunService.RenderStepped:Connect(function()
-        for _, obj in ipairs(killersFolder:GetChildren()) do
-            local bb = obj:FindFirstChild("ESP_Tag")
-            if bb then bb.Enabled = ESPState.Killers end
+        local kf = getKillersFolder()
+        if kf then
+            for _, obj in ipairs(kf:GetChildren()) do
+                local bb = obj:FindFirstChild("ESP_Tag")
+                if bb then bb.Enabled = ESPState.Killers end
+            end
         end
-
-        for _, obj in ipairs(survivorsFolder:GetChildren()) do
-            local bb = obj:FindFirstChild("ESP_Tag")
-            if bb then bb.Enabled = ESPState.Survivors end
+        local sf = getESPSurvivorsFolder()
+        if sf then
+            for _, obj in ipairs(sf:GetChildren()) do
+                local bb = obj:FindFirstChild("ESP_Tag")
+                if bb then bb.Enabled = ESPState.Survivors end
+            end
         end
-
         local mapFolder = Util.GetMapFolder()
         if mapFolder then
             for _, gen in ipairs(mapFolder:GetChildren()) do
@@ -397,9 +416,9 @@ do
                 if bb then bb.Enabled = ESPState.Generators end
             end
         end
-
-        if itemsFolder then
-            for _, item in ipairs(itemsFolder:GetChildren()) do
+        local itf = getItemsFolder()
+        if itf then
+            for _, item in ipairs(itf:GetChildren()) do
                 local bb = item:FindFirstChild("ESP_Tag")
                 if bb then bb.Enabled = ESPState.Items end
             end
@@ -441,7 +460,9 @@ do
         local root = Util.GetRoot()
         if not root then return nil end
         local weakest, lowestHP = nil, math.huge
-        for _, m in ipairs(getSurvivorsFolder():GetChildren()) do
+        local sf = getSurvivorsFolder()
+        if not sf then return nil end
+        for _, m in ipairs(sf:GetChildren()) do
             if m:IsA("Model") and m ~= LocalPlayer.Character then
                 local h = m:FindFirstChildWhichIsA("Humanoid")
                 local r = m:FindFirstChild("HumanoidRootPart")
@@ -905,8 +926,10 @@ do
     local function getNearestSurvivor()
         local root = Util.GetRoot()
         if not root then return end
+        local sf = getSurvivorsFolder()
+        if not sf then return end
         local best, bestDist = nil, math.huge
-        for _, m in ipairs(getSurvivorsFolder():GetChildren()) do
+        for _, m in ipairs(sf:GetChildren()) do
             local r = m:FindFirstChild("HumanoidRootPart")
             local h = m:FindFirstChildWhichIsA("Humanoid")
             if r and h and h.Health > 0 then
